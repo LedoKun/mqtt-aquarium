@@ -90,7 +90,7 @@ async fn main() {
     };
 
     let mut aquarium_temp = room_temp.clone();
-    aquarium_temp.value_template = "Aquarium Temperature".to_string();
+    aquarium_temp.name = "Aquarium Temperature".to_string();
     aquarium_temp.value_template = "{{ value_json.inside_temperature }}".to_string();
 
     debug!("room_temp_AD = {:#?}", room_temp);
