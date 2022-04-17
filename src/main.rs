@@ -51,12 +51,12 @@ async fn main() {
     const CONFIG_TOPIC: &str = "homeassistant/sensor/aquariumTemp/config";
     const STATE_TOPIC: &str = "homeassistant/sensor/aquariumTemp/state";
 
-    pretty_env_logger::init_timed();
-
     // Force log level to info, if none set!
     if let Err(_) = env::var("RUST_LOG") {
         env::set_var("RUST_LOG", "info");
     }
+
+    pretty_env_logger::init_timed();
 
     // Get MQTT broker server & port
     let mqtt_server = env::var("MQTT_SERVER").unwrap_or("localhost".to_string());
