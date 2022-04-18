@@ -68,10 +68,10 @@ pub fn read_temp() -> Result<(f32, f32), String> {
             debug!("Buffer = {:x?}", buffer);
             debug!("Buffer2 = {:x?}", buffer2);
 
-            if (buffer[2] == 0x4e && buffer[3] == 0x20)
-                || (buffer2[2] == 0x4e && buffer2[3] == 0x20)
-            {
-                return Err("Unable to read temperature!".to_string());
+            if buffer[0] != 0x80 || (buffer[2] == 0x4e && buffer[3] == 0x20) {
+                return Err("Unable to read inside temperature!".to_string());
+            } else if buffer2[0] != 0x80 || (buffer2[2] == 0x4e && buffer2[3] == 0x20) {
+                return Err("Unable to read outside (probe) temperature!".to_string());
             }
 
             let inside_temp = convert_temp(buffer[2], buffer[3]);
