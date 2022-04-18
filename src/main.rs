@@ -96,6 +96,7 @@ async fn main() {
     debug!("room_temp_AD = {:#?}", room_temp);
     debug!("aquarium_temp_AD = {:#?}", aquarium_temp);
 
+    // temperature reporting task
     task::spawn(async move {
         loop {
             let sensor_data = temper2::read_temp();
@@ -147,7 +148,9 @@ async fn main() {
                                 temperature_payload.inside_temperature
                             );
                         }
-                        _ => error!("Error published data to MQTT broker!"),
+                        _ => {
+                            error!("Error publishing data to MQTT broker!");
+                        }
                     }
                 }
             }
@@ -159,15 +162,18 @@ async fn main() {
     loop {
         let event = eventloop.poll().await;
         match event {
-            Ok(rumqttc::Event::Incoming(rumqttc::Incoming::ConnAck(msg))) => {
+            Ok(rumqttc::Event::Incoming(rumqttc::Incoming::ConnAck(_))) => {
                 info!("Connected to the broker!");
-                debug!("Connected msg = {msg:?}");
             }
             Ok(rumqttc::Event::Outgoing(rumqttc::Outgoing::Disconnect)) => {
-                warn!("Disconnected, retry happening...");
+                warn!("Disconnected...");
+                break;
             }
-            Ok(msg) => {
-                debug!("Event = {msg:?}");
+            Ok(rumqttc::Event::Outgoing(msg)) => {
+                debug!("Outgoing msg = {:?}", msg)
+            }
+            Ok(rumqttc::Event::Incoming(msg)) => {
+                debug!("Incoming msg = {:?}", msg)
             }
             Err(e) => {
                 error!("Error = {}", e);

@@ -19,6 +19,8 @@ pub fn read_temp() -> Result<(f32, f32), String> {
     const PID: u16 = 0xe025;
     const INTERFACE_NUMBER: i32 = 1;
 
+    const SENSOR_READ_TIMEOUT_MS: i32 = 1000;
+
     let api = HidApi::new().unwrap();
 
     for device in api.device_list() {
@@ -37,28 +39,40 @@ pub fn read_temp() -> Result<(f32, f32), String> {
 
             let mut buffer = [0u8; 8];
             sensor.write(&[0x01, 0x86, 0xff, 0x01, 0, 0, 0, 0]).unwrap();
-            sensor.read(&mut buffer).unwrap();
+            sensor
+                .read_timeout(&mut buffer, SENSOR_READ_TIMEOUT_MS)
+                .unwrap();
 
             let firmware = String::from_utf8(buffer.to_vec()).unwrap();
 
             debug!("Firmware = {}", firmware);
-    
             if firmware != FIRMWARE {
                 return Err(format!("Unsupported firmware: {}", firmware));
             }
-            
             // First read always delivers garbadge
             sensor.write(&[0x01, 0x80, 0x33, 0x01, 0, 0, 0, 0]).unwrap();
-            sensor.read(&mut buffer).unwrap();
+            sensor
+                .read_timeout(&mut buffer, SENSOR_READ_TIMEOUT_MS)
+                .unwrap();
 
             // for buffer = internal temp and buffer2 = external temp (probe)
             let mut buffer2 = [0u8; 8];
             sensor.write(&[0x01, 0x80, 0x33, 0x01, 0, 0, 0, 0]).unwrap();
-            sensor.read(&mut buffer).unwrap();
-            sensor.read(&mut buffer2).unwrap();
+            sensor
+                .read_timeout(&mut buffer, SENSOR_READ_TIMEOUT_MS)
+                .unwrap();
+            sensor
+                .read_timeout(&mut buffer2, SENSOR_READ_TIMEOUT_MS)
+                .unwrap();
 
             debug!("Buffer = {:x?}", buffer);
             debug!("Buffer2 = {:x?}", buffer2);
+
+            if (buffer[2] == 0x4e && buffer[3] == 0x20)
+                || (buffer2[2] == 0x4e && buffer2[3] == 0x20)
+            {
+                return Err("Unable to read temperature!".to_string());
+            }
 
             let inside_temp = convert_temp(buffer[2], buffer[3]);
             let outside_temp = convert_temp(buffer2[2], buffer2[3]);
@@ -70,5 +84,5 @@ pub fn read_temp() -> Result<(f32, f32), String> {
         }
     }
 
-    return Err("Unable to read temperature!".to_string());
+    return Err("Something is wrong with the sensor!".to_string());
 }
