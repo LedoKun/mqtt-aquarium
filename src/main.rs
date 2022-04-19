@@ -92,12 +92,40 @@ async fn main() {
     let mut aquarium_temp = room_temp.clone();
     aquarium_temp.name = "Aquarium Temperature".to_string();
     aquarium_temp.value_template = "{{ value_json.inside_temperature }}".to_string();
+    aquarium_temp.icon = "mdi:fishbowl-outline".to_string();
 
     debug!("room_temp_AD = {:#?}", room_temp);
     debug!("aquarium_temp_AD = {:#?}", aquarium_temp);
 
     // temperature reporting task
     task::spawn(async move {
+        //publish autodiscovery payload
+        let publish_room_ad = client
+            .publish(
+                CONFIG_TOPIC,
+                QoS::AtLeastOnce,
+                true,
+                serde_json::to_string(&room_temp).unwrap(),
+            )
+            .await;
+
+        let publish_aquarium_ad = client
+            .publish(
+                CONFIG_TOPIC,
+                QoS::AtLeastOnce,
+                true,
+                serde_json::to_string(&aquarium_temp).unwrap(),
+            )
+            .await;
+
+        match (publish_room_ad, publish_aquarium_ad) {
+            (Ok(_), Ok(_)) => {}
+            _ => {
+                error!("Unable to publish auto-discovery config!");
+                client.try_disconnect().unwrap();
+            }
+        }
+
         loop {
             let sensor_data = temper2::read_temp();
 
@@ -111,25 +139,6 @@ async fn main() {
                         inside_temperature: in_temp,
                     };
 
-                    //publish autodiscovery payload
-                    let publish_room_ad = client
-                        .publish(
-                            CONFIG_TOPIC,
-                            QoS::AtLeastOnce,
-                            false,
-                            serde_json::to_string(&room_temp).unwrap(),
-                        )
-                        .await;
-
-                    let publish_aquarium_ad = client
-                        .publish(
-                            CONFIG_TOPIC,
-                            QoS::AtLeastOnce,
-                            false,
-                            serde_json::to_string(&aquarium_temp).unwrap(),
-                        )
-                        .await;
-
                     //publish common temperature payload
                     let publish_result = client
                         .publish(
@@ -140,8 +149,8 @@ async fn main() {
                         )
                         .await;
 
-                    match (publish_room_ad, publish_aquarium_ad, publish_result) {
-                        (Ok(_), Ok(_), Ok(_)) => {
+                    match publish_result {
+                        Ok(_) => {
                             info!(
                                 "Published temperature outside = {}°C, inside = {}°C",
                                 temperature_payload.outside_temperature,
@@ -150,6 +159,7 @@ async fn main() {
                         }
                         _ => {
                             error!("Error publishing data to MQTT broker!");
+                            client.try_disconnect().unwrap();
                         }
                     }
                 }
