@@ -15,7 +15,7 @@ ENV RUST_LOG=info
 ENV MQTT_SERVER=mqtt
 ENV MQTT_PORT=1883
 COPY --from=builder /tmp/mqtt-aquarium/target/release/mqtt-aquarium .
-RUN     apt-get update \
+RUN apt-get update \
         && apt-get install -y --no-install-recommends \
                 tini \
                 libusb-1.0-0 \
